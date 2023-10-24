@@ -1,5 +1,5 @@
 # Multi-GNN
-Multi-GNN architectures for Anti-Money Laundering. This repository contains all models and adaptations needed to run Multi-GNN for Anti-Money Laundering.
+This repository contains all models and adaptations needed to run Multi-GNN for Anti-Money Laundering. The repository consists of four Graph Neural Network model classes ([GIN](https://arxiv.org/abs/1810.00826), [GAT](https://arxiv.org/abs/1710.10903), [PNA](https://arxiv.org/abs/2004.05718), [RGCN](https://arxiv.org/abs/1703.06103)) and the below-described model adaptations utilized for financial crime detection in [Egressy et al.](https://arxiv.org/abs/2306.11586). Note that this repository solely focuses on the Anti-Money Laundering use case.
 
 ## Setup
 To use the repository, you first need to install the conda environment via 
@@ -25,7 +25,7 @@ Then you can add different adaptations to the models by selecting the respective
 | `--ports`      | Port Numberings for edges    |
 
 </div>
-Thus, to run Multi-GIN, you would run the follwing command:
+Thus, to run Multi-GIN with edge updates, you would run the following command:
 
 ```
 python main.py --data Small_HI --model gin --emlps --reverse_mp --ego --ports
