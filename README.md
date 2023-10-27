@@ -30,6 +30,7 @@ Then you can add different adaptations to the models by selecting the respective
 
 </div>
 Thus, to run Multi-GIN with edge updates, you would run the following command:
+
 ```
 python main.py --data Small_HI --model gin --emlps --reverse_mp --ego --ports
 ```
