@@ -40,8 +40,7 @@ def extract_param(parameter_name: str, args) -> float:
     Returns:
     - float: Value of the specified parameter.
     """
-    ds_mapping = {'Small_Q': 'SQ', 'Small_J': 'SJ', 'Medium_R': 'MR', 'Medium_K': 'MK'}
-    file_path = f'/path_to_model_settings/model_settings_{ds_mapping[args.data]}.json'
+    file_path = './model_settings.json'
     with open(file_path, "r") as file:
         data = json.load(file)
 
