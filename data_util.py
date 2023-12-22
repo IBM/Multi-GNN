@@ -153,6 +153,14 @@ def create_hetero_obj(x,  y,  edge_index,  edge_attr, timestamps, args):
     
     return data
 
+def get_dict_val(name, collection):
+    if name in collection:
+        val = collection[name]
+    else:
+        val = len(collection)
+        collection[name] = val
+    return val
+
 def preprocess_regenerated_data(transaction_file, args):
     """Pre-processes the regenerated AML data to be used with the existing gnn scripts.
      Most importantly, reindexes the nodes and edges to be used by a GNN.
