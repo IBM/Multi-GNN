@@ -2,6 +2,8 @@ import torch
 from torch_geometric.data import Data, HeteroData
 from torch_geometric.typing import OptTensor
 import numpy as np
+import pandas as pd
+import pickle
 
 def to_adj_nodes_with_times(data):
     num_nodes = data.num_nodes
@@ -150,3 +152,70 @@ def create_hetero_obj(x,  y,  edge_index,  edge_attr, timestamps, args):
     data['node', 'to', 'node'].timestamps = timestamps
     
     return data
+
+def preprocess_regenerated_data(transaction_file, args):
+    """Pre-processes the regenerated AML data to be used with the existing gnn scripts.
+     Most importantly, reindexes the nodes and edges to be used by a GNN.
+
+    Args:
+      transaction_file: The csv file where the transaction information is stored.
+      args: The command line arguments.
+
+    Returns:
+      df_edges: A pandas dataframe containing all the edge features.
+      df_nodes: A pandas dataframe containing all the node features.
+    """
+
+    # Load the dataframe
+    #TODO: replace the path here with your actual data path
+    transaction_file = f"/path_to_data/{args.data}/transactions_formatted.txt"
+    df = pd.read_csv(transaction_file)
+
+    # Rename and reorder the columns to get the same format as the original files
+    # from_id and to_id now contain the holding ids
+    df.columns = ["Timestamp", "From Bank", "From ID", "To Bank", "To ID", "Amount Received", "Receiving Currency", "Amount Paid", "Payment Currency", "Payment Format", "Is Laundering"]
+    df = df[["From ID", "To ID", "Timestamp", "Amount Paid", "Payment Currency", "Amount Received", "Receiving Currency", "Payment Format", "Is Laundering"]]
+
+    # Redo the time column to get unix time
+    df.sort_values(by='Timestamp', inplace=True)
+    # 2. Find the minimum Unix time in the column and subtract 990 seconds
+    min_time = df['Timestamp'].min() - 10
+    # 3. Subtract this value from every entry in the 'Timestamp' column
+    df['Timestamp'] = df['Timestamp'] - min_time
+
+    # Create a dictionary that maps all nodes holding ids to their respective local id
+    # n_id_map has all holding ids as keys and their local id counterpart as the value
+    node_ids = np.unique(df[["From ID", "To ID"]].values)
+    n_id_map = {value: index for index, value in enumerate(node_ids)}
+    df["From ID"] = df["From ID"].map(n_id_map)
+    df["To ID"] = df["To ID"].map(n_id_map)
+
+    # Categorically encode the neccessary features
+    currency = dict()
+    paymentFormat = dict()
+    df["Payment Currency"] = df["Payment Currency"].apply(lambda x: get_dict_val(x, currency))
+    df["Receiving Currency"] = df["Receiving Currency"].apply(lambda x: get_dict_val(x, currency))
+    df["Payment Format"] = df["Payment Format"].apply(lambda x: get_dict_val(x, paymentFormat))
+
+    # Final edge df
+    df_edges = df.copy()
+
+    # Load the node embeddings
+    # To use this, you need embeddings pre-computed from Tab-GT
+    #TODO: replace the path here with your actual data path
+    with open(f'/path_to_data/{args.data}/{args.node_feats[0]}_embeddings.pkl', 'rb') as handle:
+        embeddings = pickle.load(handle)
+    
+
+    df_nodes = pd.DataFrame.from_dict(embeddings, orient='index').reset_index()
+    df_nodes.rename(columns={'index':'Holding ID'}, inplace=True)
+    df_edges.rename(columns={'Receiving Currency':'Received Currency', 'From ID': 'from_id', 'To ID': 'to_id'}, inplace=True)
+
+    df_nodes['NodeID'] = df_nodes['Holding ID'].map(n_id_map)
+    df_nodes = df_nodes.sort_values(by=['NodeID'])
+
+    if args.new_no_feats:
+        max_n_id = df_edges.loc[:, ['from_id', 'to_id']].to_numpy().max() + 1
+        df_nodes = pd.DataFrame({'NodeID': np.arange(max_n_id), 'Feature': np.ones(max_n_id)})
+
+    return df_edges, df_nodes

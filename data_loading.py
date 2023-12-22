@@ -3,20 +3,27 @@ import numpy as np
 import torch
 import logging
 import itertools
-from data_util import GraphData, HeteroData, z_norm, create_hetero_obj
+from data_util import GraphData, HeteroData, z_norm, create_hetero_obj, preprocess_regenerated_data
+from sklearn.decomposition import PCA
 
 def get_data(args):
     '''This function is used to get the AML data in a graph format ready to be used for GNN training.'''
 
-    transaction_file = f"/path_to_data/{args.data}/transactions.csv" #replace this with your path to the respective AML data objects
-    df_edges = pd.read_csv(transaction_file)
+    if args.downstream:
+        #TODO: replace the path here with your actual data path
+        transaction_file = f"/path_to_data/{args.data}/formatted_transactions.csv"
+        df_edges, df_nodes = preprocess_regenerated_data(transaction_file, args)
+    else:
+        #TODO: replace the path here with your actual data path
+        transaction_file = f"//path_to_data/{args.data}/formatted_transactions.csv"
+        df_edges = pd.read_csv(transaction_file)
+        max_n_id = df_edges.loc[:, ['from_id', 'to_id']].to_numpy().max() + 1
+        df_nodes = pd.DataFrame({'NodeID': np.arange(max_n_id), 'Feature': np.ones(max_n_id)})
 
     logging.info(f'Available Edge Features: {df_edges.columns.tolist()}')
 
     df_edges['Timestamp'] = df_edges['Timestamp'] - df_edges['Timestamp'].min()
 
-    max_n_id = df_edges.loc[:, ['from_id', 'to_id']].to_numpy().max() + 1
-    df_nodes = pd.DataFrame({'NodeID': np.arange(max_n_id), 'Feature': np.ones(max_n_id)})
     timestamps = torch.Tensor(df_edges['Timestamp'].to_numpy())
     y = torch.LongTensor(df_edges['Is Laundering'].to_numpy())
 
@@ -25,12 +32,23 @@ def get_data(args):
     logging.info(f"Number of transactions = {df_edges.shape[0]}")
 
     edge_features = ['Timestamp', 'Amount Received', 'Received Currency', 'Payment Format']
-    node_features = ['Feature']
+    node_features = ['Feature'] ['Feature'] if not args.downstream else [col for col in df_nodes.columns if col not in {'Holding ID', 'NodeID'}]
 
     logging.info(f'Edge features being used: {edge_features}')
     logging.info(f'Node features being used: {node_features} ("Feature" is a placeholder feature of all 1s)')
 
-    x = torch.tensor(df_nodes.loc[:, node_features].to_numpy()).float()
+    if not args.pca:
+        x = torch.tensor(df_nodes.loc[:, node_features].to_numpy()).float()
+    else:
+        embeddings = df_nodes.loc[:, node_features].to_numpy()
+        
+        # Reduce the dimensionality with PCA
+        k = 32  # Target dimensionality
+        pca = PCA(n_components=k)
+        reduced_embeddings = pca.fit_transform(embeddings)
+
+        x = torch.tensor(reduced_embeddings).float()
+
     edge_index = torch.LongTensor(df_edges.loc[:, ['from_id', 'to_id']].to_numpy().T)
     edge_attr = torch.tensor(df_edges.loc[:, edge_features].to_numpy()).float()
 
@@ -122,7 +140,6 @@ def get_data(args):
         tr_data.edge_attr[:, :-1], val_data.edge_attr[:, :-1], te_data.edge_attr[:, :-1] = z_norm(tr_data.edge_attr[:, :-1]), z_norm(val_data.edge_attr[:, :-1]), z_norm(te_data.edge_attr[:, :-1])
 
     #Create heterogenous if reverese MP is enabled
-    #TODO: if I observe wierd behaviour, maybe add .detach.clone() to all torch tensors, but I don't think they're attached to any computation graph just yet
     if args.reverse_mp:
         tr_data = create_hetero_obj(tr_data.x,  tr_data.y,  tr_data.edge_index,  tr_data.edge_attr, tr_data.timestamps, args)
         val_data = create_hetero_obj(val_data.x,  val_data.y,  val_data.edge_index,  val_data.edge_attr, val_data.timestamps, args)
