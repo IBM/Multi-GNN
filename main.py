@@ -3,7 +3,7 @@ import logging
 from util import create_parser, set_seed, logger_setup
 from data_loading import get_data
 from training import train_gnn
-
+from inference import infer_gnn
 
 def main():
     parser = create_parser()
@@ -23,10 +23,15 @@ def main():
     
     t2 = time.perf_counter()
     logging.info(f"Retrieved data in {t2-t1:.2f}s")
-    
-    #Training
-    logging.info(f"Running Training")
-    train_gnn(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, args)
+
+    if not args.inference:
+        #Training
+        logging.info(f"Running Training")
+        train_gnn(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, args)
+    else:
+        #Inference
+        logging.info(f"Running Inference")
+        infer_gnn(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, args)
 
 if __name__ == "__main__":
     main()
