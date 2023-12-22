@@ -186,3 +186,20 @@ def evaluate_hetero(loader, inds, model, data, device, args):
     f1 = f1_score(ground_truth, pred)
 
     return f1
+
+def save_model(model, optimizer, epoch, args):
+    # Save the model in a dictionary
+    torch.save({
+                'epoch': epoch + 1,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict()
+                }, f'/dccstor/aml-e/datasets/model_checkpoints/checkpoint_{args.unique_name}{"" if not args.finetune else "_finetuned"}.tar')
+    
+def load_model(model, device, args, config):
+    checkpoint = torch.load(f'/dccstor/aml-e/datasets/model_checkpoints/checkpoint_{args.unique_name}.tar')
+    model.load_state_dict(checkpoint['model_state_dict'])
+    model.to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+
+    return model, optimizer

@@ -38,6 +38,9 @@ def create_parser():
     parser.add_argument("--data", default=None, type=str, help="Select the AML dataset. Needs to be either small or medium.", required=True)
     parser.add_argument("--model", default=None, type=str, help="Select the model architecture. Needs to be one of [gin, gat, rgcn, pna]", required=True)
     parser.add_argument("--testing", action='store_true', help="Disable wandb logging while running the script in 'testing' mode.")
+    parser.add_argument("--save_model", action='store_true', help="Save the best model.")
+    parser.add_argument("--unique_name", action='store_true', help="Unique name under which the model will be stored.")
+    parser.add_argument("--finetune", action='store_true', help="Fine-tune a model. Note that args.unique_name needs to point to the pre-trained model.")
 
     return parser
 

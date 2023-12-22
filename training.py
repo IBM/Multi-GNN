@@ -1,7 +1,7 @@
 import torch
 import tqdm
 from sklearn.metrics import f1_score
-from train_util import AddEgoIds, extract_param, add_arange_ids, get_loaders, evaluate_homo, evaluate_hetero
+from train_util import AddEgoIds, extract_param, add_arange_ids, get_loaders, evaluate_homo, evaluate_hetero, save_model, load_model
 from models import GINe, PNA, GATe, RGCN
 from torch_geometric.data import Data, HeteroData
 from torch_geometric.nn import to_hetero, summary
@@ -61,6 +61,8 @@ def train_homo(tr_loader, val_loader, te_loader, tr_inds, val_inds, te_inds, mod
         elif val_f1 > best_val_f1:
             best_val_f1 = val_f1
             wandb.log({"best_test_f1": te_f1}, step=epoch)
+            if args.save_model:
+                save_model(model, optimizer, epoch, args)
     
     return model
 
@@ -118,6 +120,8 @@ def train_hetero(tr_loader, val_loader, te_loader, tr_inds, val_inds, te_inds, m
         elif val_f1 > best_val_f1:
             best_val_f1 = val_f1
             wandb.log({"best_test_f1": te_f1}, step=epoch)
+            if args.save_model:
+                save_model(model, optimizer, epoch, args)
         
     return model
 
@@ -202,7 +206,13 @@ def train_gnn(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, args):
     #get the model
     sample_batch = next(iter(tr_loader))
     model = get_model(sample_batch, config, args)
-    
+    if args.finetune:
+        model, optimizer = load_model(model, device, args, config)
+    else:
+        model = get_model(sample_batch, config, args)
+        model.to(device)
+        optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
+
     if args.reverse_mp:
         model = to_hetero(model, te_data.metadata(), aggr='mean')
     
@@ -216,10 +226,6 @@ def train_gnn(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, args):
     sample_edge_attr = sample_batch.edge_attr if not isinstance(sample_batch, HeteroData) else sample_batch.edge_attr_dict
     logging.info(summary(model, sample_x, sample_edge_index, sample_edge_attr))
     
-    model.to(device)
-
-    #optimizer and loss function
-    optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
     loss_fn = torch.nn.CrossEntropyLoss(weight=torch.FloatTensor([config.w_ce1, config.w_ce2]).to(device))
 
     if args.reverse_mp:
@@ -228,5 +234,3 @@ def train_gnn(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, args):
         model = train_homo(tr_loader, val_loader, te_loader, tr_inds, val_inds, te_inds, model, optimizer, loss_fn, args, config, device, val_data, te_data)
     
     wandb.finish()
-    
-    #TODO: Add possibility to then store the model if needed.
