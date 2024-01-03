@@ -1,7 +1,6 @@
 import torch
 import pandas as pd
-from train_util import AddEgoIds, extract_param, add_arange_ids, get_loaders, evaluate_homo, evaluate_hetero, rerun, get_model_name
-from infer_utils import evaluate_homo_w_tps
+from train_util import AddEgoIds, extract_param, add_arange_ids, get_loaders, evaluate_homo, evaluate_hetero
 from training import get_model
 from torch_geometric.nn import to_hetero, summary
 import wandb
