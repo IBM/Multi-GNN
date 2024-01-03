@@ -29,8 +29,8 @@ def get_dict_val(name, collection):
         collection[name] = val
     return val
 
-header = "EdgeID,SourceAccountId,TargetAccountId,Timestamp,\
-Amount Sent,Sent Currency,Amount Received,Receiving Currency,\
+header = "EdgeID,from_id,to_id,Timestamp,\
+Amount Sent,Sent Currency,Amount Received,Received Currency,\
 Payment Format,Is Laundering\n"
 
 firstTs = -1
@@ -63,10 +63,10 @@ with open(outPath, 'w') as writer:
         toAccIdStr = raw[i,"To Bank"] + raw[i,4]
         toId = get_dict_val(toAccIdStr, account)
 
-        amountReceivedOrig = raw[i,"Amount Received"]
-        amountPaidOrig = raw[i,"Amount Paid"]
+        amountReceivedOrig = float(raw[i,"Amount Received"])
+        amountPaidOrig = float(raw[i,"Amount Paid"])
 
-        isl = raw[i,"Is Laundering"]
+        isl = int(raw[i,"Is Laundering"])
 
         line = '%d,%d,%d,%d,%f,%d,%f,%d,%d,%d\n' % \
                     (i,fromId,toId,ts,amountPaidOrig,cur2, amountReceivedOrig,cur1,fmt,isl)
