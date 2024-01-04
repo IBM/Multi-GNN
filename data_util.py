@@ -80,6 +80,7 @@ class GraphData(Data):
             self.timestamps = None
 
     def add_ports(self):
+        '''Adds port numberings to the edge features'''
         reverse_ports = True
         adj_list_in, adj_list_out = to_adj_nodes_with_times(self)
         in_ports = ports(self.edge_index, adj_list_in)
@@ -88,6 +89,7 @@ class GraphData(Data):
         return self
 
     def add_time_deltas(self):
+        '''Adds time deltas (i.e. the time between subsequent transactions) to the edge features'''
         reverse_tds = True
         adj_list_in, adj_list_out = to_adj_edges_with_times(self)
         in_tds = time_deltas(self, adj_list_in)
@@ -114,6 +116,7 @@ class HeteroGraphData(HeteroData):
         return self['node', 'to', 'node'].timestamps
 
     def add_ports(self):
+        '''Adds port numberings to the edge features'''
         adj_list_in, adj_list_out = to_adj_nodes_with_times(self)
         in_ports = ports(self['node', 'to', 'node'].edge_index, adj_list_in)
         out_ports = ports(self['node', 'rev_to', 'node'].edge_index, adj_list_out)
@@ -122,6 +125,7 @@ class HeteroGraphData(HeteroData):
         return self
 
     def add_time_deltas(self):
+        '''Adds time deltas (i.e. the time between subsequent transactions) to the edge features'''
         adj_list_in, adj_list_out = to_adj_edges_with_times(self)
         in_tds = time_deltas(self, adj_list_in)
         out_tds = time_deltas(self, adj_list_out)
@@ -135,7 +139,7 @@ def z_norm(data):
     return (data - data.mean(0).unsqueeze(0)) / std
 
 def create_hetero_obj(x,  y,  edge_index,  edge_attr, timestamps, args):
-    '''This function creates a heterogenous graph object for reverse message passing'''
+    '''Creates a heterogenous graph object for reverse message passing'''
     data = HeteroGraphData()
 
     data['node'].x = x

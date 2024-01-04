@@ -6,7 +6,12 @@ import itertools
 from data_util import GraphData, HeteroData, z_norm, create_hetero_obj
 
 def get_data(args):
-    '''This function is used to get the AML data in a graph format ready to be used for GNN training.'''
+    '''Loads the AML transaction data.
+    
+    1. The data is loaded from the csv and the necessary features are chosen.
+    2. The data is split into training, validation and test data.
+    3. PyG Data objects are created with the respective data splits.
+    '''
 
     transaction_file = f"/path_to_data/{args.data}/transactions.csv" #replace this with your path to the respective AML data objects
     df_edges = pd.read_csv(transaction_file)

@@ -17,7 +17,7 @@ def infer_gnn(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, args):
 
     #define a model config dictionary and wandb logging at the same time
     wandb.init(
-        mode="online",
+        mode="disabled" if args.testing else "online",
         project="your_proj_name",
 
         config={

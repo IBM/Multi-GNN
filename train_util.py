@@ -97,6 +97,7 @@ def get_loaders(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, transfor
 
 @torch.no_grad()
 def evaluate_homo(loader, inds, model, data, device, args):
+    '''Evaluates the model performane for homogenous graph data.'''
     preds = []
     ground_truths = []
     for batch in tqdm.tqdm(loader, disable=not args.tqdm):
@@ -142,6 +143,7 @@ def evaluate_homo(loader, inds, model, data, device, args):
 
 @torch.no_grad()
 def evaluate_hetero(loader, inds, model, data, device, args):
+    '''Evaluates the model performane for heterogenous graph data.'''
     preds = []
     ground_truths = []
     for batch in tqdm.tqdm(loader, disable=not args.tqdm):
