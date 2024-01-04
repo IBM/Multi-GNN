@@ -5,7 +5,7 @@ import logging
 import itertools
 from data_util import GraphData, HeteroData, z_norm, create_hetero_obj
 
-def get_data(args):
+def get_data(args, data_config):
     '''Loads the AML transaction data.
     
     1. The data is loaded from the csv and the necessary features are chosen.
@@ -13,7 +13,7 @@ def get_data(args):
     3. PyG Data objects are created with the respective data splits.
     '''
 
-    transaction_file = f"/path_to_data/{args.data}/transactions.csv" #replace this with your path to the respective AML data objects
+    transaction_file = f"{data_config['paths']['aml_data']}/{args.data}/formatted_transactions.csv" #replace this with your path to the respective AML data objects
     df_edges = pd.read_csv(transaction_file)
 
     logging.info(f'Available Edge Features: {df_edges.columns.tolist()}')

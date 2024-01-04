@@ -9,7 +9,7 @@ from torch_geometric.utils import degree
 import wandb
 import logging
 
-def train_homo(tr_loader, val_loader, te_loader, tr_inds, val_inds, te_inds, model, optimizer, loss_fn, args, config, device, val_data, te_data):
+def train_homo(tr_loader, val_loader, te_loader, tr_inds, val_inds, te_inds, model, optimizer, loss_fn, args, config, device, val_data, te_data, data_config):
     #training
     best_val_f1 = 0
     for epoch in range(config.epochs):
@@ -62,11 +62,11 @@ def train_homo(tr_loader, val_loader, te_loader, tr_inds, val_inds, te_inds, mod
             best_val_f1 = val_f1
             wandb.log({"best_test_f1": te_f1}, step=epoch)
             if args.save_model:
-                save_model(model, optimizer, epoch, args)
+                save_model(model, optimizer, epoch, args, data_config)
     
     return model
 
-def train_hetero(tr_loader, val_loader, te_loader, tr_inds, val_inds, te_inds, model, optimizer, loss_fn, args, config, device, val_data, te_data):
+def train_hetero(tr_loader, val_loader, te_loader, tr_inds, val_inds, te_inds, model, optimizer, loss_fn, args, config, device, val_data, te_data, data_config):
     #training
     best_val_f1 = 0
     for epoch in range(config.epochs):
@@ -121,7 +121,7 @@ def train_hetero(tr_loader, val_loader, te_loader, tr_inds, val_inds, te_inds, m
             best_val_f1 = val_f1
             wandb.log({"best_test_f1": te_f1}, step=epoch)
             if args.save_model:
-                save_model(model, optimizer, epoch, args)
+                save_model(model, optimizer, epoch, args, data_config)
         
     return model
 
@@ -163,7 +163,7 @@ def get_model(sample_batch, config, args):
     
     return model
 
-def train_gnn(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, args):
+def train_gnn(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, args, data_config):
     #set device
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -207,7 +207,7 @@ def train_gnn(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, args):
     sample_batch = next(iter(tr_loader))
     model = get_model(sample_batch, config, args)
     if args.finetune:
-        model, optimizer = load_model(model, device, args, config)
+        model, optimizer = load_model(model, device, args, config, data_config)
     else:
         model = get_model(sample_batch, config, args)
         model.to(device)
@@ -229,8 +229,8 @@ def train_gnn(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, args):
     loss_fn = torch.nn.CrossEntropyLoss(weight=torch.FloatTensor([config.w_ce1, config.w_ce2]).to(device))
 
     if args.reverse_mp:
-        model = train_hetero(tr_loader, val_loader, te_loader, tr_inds, val_inds, te_inds, model, optimizer, loss_fn, args, config, device, val_data, te_data)
+        model = train_hetero(tr_loader, val_loader, te_loader, tr_inds, val_inds, te_inds, model, optimizer, loss_fn, args, config, device, val_data, te_data, data_config)
     else:
-        model = train_homo(tr_loader, val_loader, te_loader, tr_inds, val_inds, te_inds, model, optimizer, loss_fn, args, config, device, val_data, te_data)
+        model = train_homo(tr_loader, val_loader, te_loader, tr_inds, val_inds, te_inds, model, optimizer, loss_fn, args, config, device, val_data, te_data, data_config)
     
     wandb.finish()

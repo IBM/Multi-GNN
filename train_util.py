@@ -189,18 +189,16 @@ def evaluate_hetero(loader, inds, model, data, device, args):
 
     return f1
 
-def save_model(model, optimizer, epoch, args):
+def save_model(model, optimizer, epoch, args, data_config):
     # Save the model in a dictionary
-    #TODO: Change this path to where you want to store the model checkpoints
     torch.save({
                 'epoch': epoch + 1,
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict()
-                }, f'.../model_checkpoint_dict/checkpoint_{args.unique_name}{"" if not args.finetune else "_finetuned"}.tar')
+                }, f'{data_config["paths"]["model_to_save"]}/checkpoint_{args.unique_name}{"" if not args.finetune else "_finetuned"}.tar')
     
-def load_model(model, device, args, config):
-    #TODO: Change this path to where you want to store the model checkpoints
-    checkpoint = torch.load(f'.../model_checkpoint_dict/checkpoint_{args.unique_name}.tar')
+def load_model(model, device, args, config, data_config):
+    checkpoint = torch.load(f'{data_config["paths"]["model_to_load"]}/checkpoint_{args.unique_name}.tar')
     model.load_state_dict(checkpoint['model_state_dict'])
     model.to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)

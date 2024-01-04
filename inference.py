@@ -11,7 +11,7 @@ import time
 
 script_start = time.time()
 
-def infer_gnn(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, args):
+def infer_gnn(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, args, data_config):
     #set device
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -65,7 +65,7 @@ def infer_gnn(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, args):
         args.unique_name = name
 
     logging.info("=> loading model checkpoint")
-    checkpoint = torch.load(f'path_to_your_checkpoint/checkpoint_{args.unique_name}.tar')
+    checkpoint = torch.load(f'{data_config["paths"]["model_to_load"]}/checkpoint_{args.unique_name}.tar')
     start_epoch = checkpoint['epoch']
     model.load_state_dict(checkpoint['model_state_dict'])
     model.to(device)

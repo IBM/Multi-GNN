@@ -1,0 +1,7 @@
+{
+    "paths": {
+      "aml_data": "/path/to/aml_data", 
+      "model_to_load": "/path/to/model_you_want_to_load (e.g for inference or fine-tuning)",
+      "model_to_save": "/path/to/model_save_location (where you want to store the model you are going to train)"
+    }
+  }
