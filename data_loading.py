@@ -5,6 +5,38 @@ import logging
 import itertools
 from data_util import GraphData, HeteroData, z_norm, create_hetero_obj
 
+import json
+import random
+import copy
+
+def fake_trans_1_old_1_new(te_edge_index):
+    edge_index = copy.deepcopy(te_edge_index)
+
+    max_id = edge_index.max() + 1
+
+    mask = np.random.random(size=edge_index.shape[1]) > 0.5
+    edge_index[0, mask] += max_id
+    edge_index[1, ~mask] += max_id
+    
+    return edge_index
+
+def fake_trans_n_new_n_new(te_edge_index):
+    edge_index = copy.deepcopy(te_edge_index)
+    max_id = edge_index.max()
+    edge_index[0, :] += max_id
+    edge_index[1, :] += max_id
+    # edge_index[0, :] = torch.sum(
+    #     torch.stack([
+    #         torch.tensor([max_id + x for x in range(edge_index.shape[1])]),
+    #         edge_index[0, :]
+    #     ]), dim=0)
+    # edge_index[1, :] = torch.sum(
+    # torch.stack([
+    #     torch.tensor([max_id + x for x in range(edge_index.shape[1])]),
+    #     edge_index[1, :]
+    # ]), dim=0)
+    return edge_index
+
 def get_data(args, data_config):
     '''Loads the AML transaction data.
     
@@ -36,6 +68,7 @@ def get_data(args, data_config):
     logging.info(f'Node features being used: {node_features} ("Feature" is a placeholder feature of all 1s)')
 
     x = torch.tensor(df_nodes.loc[:, node_features].to_numpy()).float()
+    
     edge_index = torch.LongTensor(df_edges.loc[:, ['from_id', 'to_id']].to_numpy().T)
     edge_attr = torch.tensor(df_edges.loc[:, edge_features].to_numpy()).float()
 
@@ -96,15 +129,42 @@ def get_data(args, data_config):
     tr_x, val_x, te_x = x, x, x
     e_tr = tr_inds.numpy()
     e_val = np.concatenate([tr_inds, val_inds])
-
+    e_test = te_inds.numpy()
     tr_edge_index,  tr_edge_attr,  tr_y,  tr_edge_times  = edge_index[:,e_tr],  edge_attr[e_tr],  y[e_tr],  timestamps[e_tr]
     val_edge_index, val_edge_attr, val_y, val_edge_times = edge_index[:,e_val], edge_attr[e_val], y[e_val], timestamps[e_val]
-    te_edge_index,  te_edge_attr,  te_y,  te_edge_times  = edge_index,          edge_attr,        y,        timestamps
+    
+    if args.fake_data is not None:
+        if args.fake_data == '1_old_1_new':
+            te_edge_index = fake_trans_1_old_1_new(edge_index[:, te_inds])
+            te_edge_index = torch.cat([edge_index[:, e_val], te_edge_index], dim=1)
+            te_edge_attr, te_y, te_edge_times = edge_attr, y, timestamps
+            # tmp_edge_index = edge_index.clone()
+            # te_edge_index = edge_index
+            # te_edge_index[1, 1] += 10000000
+            # te_edge_index = tmp_edge_index
+            # thay doi tren tap test 1 trong from to
+        if args.fake_data == 'n_new_n_new':
+            te_edge_index = fake_trans_n_new_n_new(edge_index[:, te_inds])
+            te_edge_index = torch.cat([edge_index[:, e_val], te_edge_index], dim=1)
+            te_edge_attr, te_y, te_edge_times = edge_attr, y, timestamps
+            # thay doi tren tap test ca from va to
 
+        if args.fake_data == 'all_new':
+            te_edge_attr, te_y, te_edge_times = edge_attr, y, timestamps
+            te_edge_index = fake_trans_n_new_n_new(edge_index)
+            te_inds =  np.concatenate([tr_inds, val_inds, te_inds])
+            # cai tap test = train + valid + test 
+            # thay doi tren tap test ca from va to
+
+            te_inds = torch.tensor(te_inds)
+    else:
+        te_edge_index,  te_edge_attr,  te_y,  te_edge_times  = edge_index, edge_attr, y, timestamps
+
+    te_x = torch.ones(te_edge_index.max()).reshape(-1,1)
     tr_data = GraphData (x=tr_x,  y=tr_y,  edge_index=tr_edge_index,  edge_attr=tr_edge_attr,  timestamps=tr_edge_times )
     val_data = GraphData(x=val_x, y=val_y, edge_index=val_edge_index, edge_attr=val_edge_attr, timestamps=val_edge_times)
     te_data = GraphData (x=te_x,  y=te_y,  edge_index=te_edge_index,  edge_attr=te_edge_attr,  timestamps=te_edge_times )
-
+    
     #Adding ports and time-deltas if applicable
     if args.ports:
         logging.info(f"Start: adding ports")
@@ -138,4 +198,31 @@ def get_data(args, data_config):
     logging.info(f'test data object: {te_data}')
 
     return tr_data, val_data, te_data, tr_inds, val_inds, te_inds
+
+if __name__ == "__main__":
+    with open('data_config.json', 'r') as config_file:
+        data_config = json.load(config_file)
+        
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--data', type=str, default='Small_HI', help='Specify the data')
+    parser.add_argument("--ports", action='store_true', help="Use port numberings in GNN training")
+    parser.add_argument("--tds", action='store_true', help="Use time deltas (i.e. the time between subsequent transactions) in GNN training")
+    parser.add_argument("--model", default="gin", type=str, help="Select the model architecture. Needs to be one of [gin, gat, rgcn, pna]")
+    parser.add_argument("--reverse_mp", action='store_true', help="Use reverse MP in GNN training")
+    parser.add_argument("--fake_data", default=None, type=str, help="Select the fake type for test set. Needs to be one of [1_old_1_new, n_new_n_new]")
+
+    #Model parameters
+    parser.add_argument("--batch_size", default=8192, type=int, help="Select the batch size for GNN training")
+    parser.add_argument("--n_epochs", default=100, type=int, help="Select the number of epochs for GNN training")
+    parser.add_argument('--num_neighs', nargs='+', default=[100,100], help='Pass the number of neighors to be sampled in each hop (descending).')
+
+    args = parser.parse_args()
+
+    tr_data, val_data, te_data, tr_inds, val_inds, te_inds = get_data(args, data_config)
+    from train_util import AddEgoIds, extract_param, add_arange_ids, get_loaders, evaluate_homo, evaluate_hetero
+    transform = None
     
+    tr_loader, val_loader, te_loader = get_loaders(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, transform, args)
+
+    from IPython import embed; embed()

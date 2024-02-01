@@ -4,7 +4,7 @@ from torch_geometric.transforms import BaseTransform
 from typing import Union
 from torch_geometric.data import Data, HeteroData
 from torch_geometric.loader import LinkNeighborLoader
-from sklearn.metrics import f1_score
+from sklearn.metrics import balanced_accuracy_score, cohen_kappa_score, f1_score, precision_score, recall_score
 import json
 
 class AddEgoIds(BaseTransform):
@@ -138,8 +138,12 @@ def evaluate_homo(loader, inds, model, data, device, args):
     pred = torch.cat(preds, dim=0).cpu().numpy()
     ground_truth = torch.cat(ground_truths, dim=0).cpu().numpy()
     f1 = f1_score(ground_truth, pred)
-
-    return f1
+    ba = balanced_accuracy_score(ground_truth, pred)
+    cohens_kappa = cohen_kappa_score(ground_truth, pred)
+    recall = recall_score(ground_truth, pred)
+    precision = precision_score(ground_truth, pred)
+    
+    return f1, ba, cohens_kappa, recall, precision
 
 @torch.no_grad()
 def evaluate_hetero(loader, inds, model, data, device, args):
