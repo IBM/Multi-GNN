@@ -206,15 +206,15 @@ def train_gnn(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, args, data
     #get the model
     sample_batch = next(iter(tr_loader))
     model = get_model(sample_batch, config, args)
-    if args.finetune:
-        model, optimizer = load_model(model, device, args, config, data_config)
-    else:
-        model = get_model(sample_batch, config, args)
-        model.to(device)
-        optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
 
     if args.reverse_mp:
         model = to_hetero(model, te_data.metadata(), aggr='mean')
+    
+    if args.finetune:
+        model, optimizer = load_model(model, device, args, config, data_config)
+    else:
+        model.to(device)
+        optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)
     
     sample_batch.to(device)
     sample_x = sample_batch.x if not isinstance(sample_batch, HeteroData) else sample_batch.x_dict
