@@ -58,7 +58,7 @@ def infer_gnn(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, args, data
     if args.reverse_mp:
         model = to_hetero(model, te_data.metadata(), aggr='mean')
     
-    if not (args.avg_tps or args.finetune):
+    if not (args.finetune):
         command = " ".join(sys.argv)
         name = ""
         name = '-'.join(name.split('-')[3:])
@@ -73,8 +73,10 @@ def infer_gnn(tr_data, val_data, te_data, tr_inds, val_inds, te_inds, args, data
     logging.info("=> loaded checkpoint (epoch {})".format(start_epoch))
 
     if not args.reverse_mp:
-        te_f1, te_prec, te_rec = evaluate_homo(te_loader, te_inds, model, te_data, device, args, precrec=True)
+        te_f1 = evaluate_homo(te_loader, te_inds, model, te_data, device, args)
+        logging.info(f'Test F1: {te_f1:.4f}')
     else:
-        te_f1, te_prec, te_rec = evaluate_hetero(te_loader, te_inds, model, te_data, device, args, precrec=True)
+        te_f1 = evaluate_hetero(te_loader, te_inds, model, te_data, device, args)
+        logging.info(f'Test F1: {te_f1:.4f}')
 
     wandb.finish()
