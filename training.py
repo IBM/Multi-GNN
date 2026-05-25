@@ -8,6 +8,7 @@ from torch_geometric.nn import to_hetero, summary
 from torch_geometric.utils import degree
 import wandb
 import logging
+from edge_feature_utils import get_edge_type_index
 
 def train_homo(tr_loader, val_loader, te_loader, tr_inds, val_inds, te_inds, model, optimizer, loss_fn, args, config, device, val_data, te_data, data_config):
     #training
@@ -158,7 +159,8 @@ def get_model(sample_batch, config, args):
         model = RGCN(
             num_features=n_feats, edge_dim=e_dim, num_relations=8, num_gnn_layers=round(config.n_gnn_layers),
             n_classes=2, n_hidden=round(config.n_hidden),
-            edge_update=args.emlps, dropout=config.dropout, final_dropout=config.final_dropout, n_bases=None #(maybe)
+            edge_update=args.emlps, dropout=config.dropout, final_dropout=config.final_dropout, n_bases=None,
+            edge_type_index=get_edge_type_index() #(maybe)
         )
     
     return model

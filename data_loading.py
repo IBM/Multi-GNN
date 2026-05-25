@@ -3,7 +3,8 @@ import numpy as np
 import torch
 import logging
 import itertools
-from data_util import GraphData, HeteroData, z_norm, create_hetero_obj
+from data_util import GraphData, HeteroData, create_hetero_obj
+from edge_feature_utils import get_non_normalized_edge_feature_indices, z_norm, z_norm_except
 
 def get_data(args, data_config):
     '''Loads the AML transaction data.
@@ -121,10 +122,10 @@ def get_data(args, data_config):
     
     #Normalize data
     tr_data.x = val_data.x = te_data.x = z_norm(tr_data.x)
-    if not args.model == 'rgcn':
-        tr_data.edge_attr, val_data.edge_attr, te_data.edge_attr = z_norm(tr_data.edge_attr), z_norm(val_data.edge_attr), z_norm(te_data.edge_attr)
-    else:
-        tr_data.edge_attr[:, :-1], val_data.edge_attr[:, :-1], te_data.edge_attr[:, :-1] = z_norm(tr_data.edge_attr[:, :-1]), z_norm(val_data.edge_attr[:, :-1]), z_norm(te_data.edge_attr[:, :-1])
+    excluded_edge_feature_indices = get_non_normalized_edge_feature_indices(args.model)
+    tr_data.edge_attr = z_norm_except(tr_data.edge_attr, excluded_edge_feature_indices)
+    val_data.edge_attr = z_norm_except(val_data.edge_attr, excluded_edge_feature_indices)
+    te_data.edge_attr = z_norm_except(te_data.edge_attr, excluded_edge_feature_indices)
 
     #Create heterogenous if reverese MP is enabled
     #TODO: if I observe wierd behaviour, maybe add .detach.clone() to all torch tensors, but I don't think they're attached to any computation graph just yet
@@ -138,4 +139,3 @@ def get_data(args, data_config):
     logging.info(f'test data object: {te_data}')
 
     return tr_data, val_data, te_data, tr_inds, val_inds, te_inds
-    

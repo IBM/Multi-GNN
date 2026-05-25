@@ -3,6 +3,7 @@ from torch_geometric.nn import GINEConv, BatchNorm, Linear, GATConv, PNAConv, RG
 import torch.nn.functional as F
 import torch
 import logging
+from edge_feature_utils import average_residual_update
 
 class GINe(torch.nn.Module):
     def __init__(self, num_features, num_gnn_layers, n_classes=2, 
@@ -44,9 +45,9 @@ class GINe(torch.nn.Module):
         edge_attr = self.edge_emb(edge_attr)
 
         for i in range(self.num_gnn_layers):
-            x = (x + F.relu(self.batch_norms[i](self.convs[i](x, edge_index, edge_attr)))) / 2
+            x = average_residual_update(x, F.relu(self.batch_norms[i](self.convs[i](x, edge_index, edge_attr))))
             if self.edge_updates: 
-                edge_attr = edge_attr + self.emlps[i](torch.cat([x[src], x[dst], edge_attr], dim=-1)) / 2
+                edge_attr = average_residual_update(edge_attr, self.emlps[i](torch.cat([x[src], x[dst], edge_attr], dim=-1)))
 
         x = x[edge_index.T].reshape(-1, 2 * self.n_hidden).relu()
         x = torch.cat((x, edge_attr.view(-1, edge_attr.shape[1])), 1)
@@ -90,9 +91,9 @@ class GATe(torch.nn.Module):
         edge_attr = self.edge_emb(edge_attr)
         
         for i in range(self.num_gnn_layers):
-            x = (x + F.relu(self.batch_norms[i](self.convs[i](x, edge_index, edge_attr)))) / 2
+            x = average_residual_update(x, F.relu(self.batch_norms[i](self.convs[i](x, edge_index, edge_attr))))
             if self.edge_updates:
-                edge_attr = edge_attr + self.emlps[i](torch.cat([x[src], x[dst], edge_attr], dim=-1)) / 2
+                edge_attr = average_residual_update(edge_attr, self.emlps[i](torch.cat([x[src], x[dst], edge_attr], dim=-1)))
                     
         logging.debug(f"x.shape = {x.shape}, x[edge_index.T].shape = {x[edge_index.T].shape}")
         x = x[edge_index.T].reshape(-1, 2 * self.n_hidden).relu()
@@ -146,9 +147,9 @@ class PNA(torch.nn.Module):
         edge_attr = self.edge_emb(edge_attr)
 
         for i in range(self.num_gnn_layers):
-            x = (x + F.relu(self.batch_norms[i](self.convs[i](x, edge_index, edge_attr)))) / 2
+            x = average_residual_update(x, F.relu(self.batch_norms[i](self.convs[i](x, edge_index, edge_attr))))
             if self.edge_updates: 
-                edge_attr = edge_attr + self.emlps[i](torch.cat([x[src], x[dst], edge_attr], dim=-1)) / 2
+                edge_attr = average_residual_update(edge_attr, self.emlps[i](torch.cat([x[src], x[dst], edge_attr], dim=-1)))
 
         logging.debug(f"x.shape = {x.shape}, x[edge_index.T].shape = {x[edge_index.T].shape}")
         x = x[edge_index.T].reshape(-1, 2 * self.n_hidden).relu()
@@ -162,7 +163,7 @@ class RGCN(nn.Module):
     def __init__(self, num_features, edge_dim, num_relations, num_gnn_layers, n_classes=2, 
                 n_hidden=100, edge_update=False,
                 residual=True,
-                dropout=0.0, final_dropout=0.5, n_bases=-1):
+                dropout=0.0, final_dropout=0.5, n_bases=-1, edge_type_index=3):
         super(RGCN, self).__init__()
 
         self.num_features = num_features
@@ -175,6 +176,7 @@ class RGCN(nn.Module):
         self.edge_update = edge_update
         self.num_relations = num_relations
         self.n_bases = n_bases
+        self.edge_type_index = edge_type_index
 
         self.node_emb = nn.Linear(num_features, n_hidden)
         self.edge_emb = nn.Linear(edge_dim, n_hidden)
@@ -216,17 +218,17 @@ class RGCN(nn.Module):
                 m.reset_parameters()
 
     def forward(self, x, edge_index, edge_attr):
-        edge_type = edge_attr[:, -1].long()
-        #edge_attr = edge_attr[:, :-1]
+        edge_type = edge_attr[:, self.edge_type_index].long()
+        edge_attr = torch.cat((edge_attr[:, :self.edge_type_index], edge_attr[:, self.edge_type_index + 1:]), dim=-1)
         src, dst = edge_index
 
         x = self.node_emb(x)
         edge_attr = self.edge_emb(edge_attr)
 
         for i in range(self.num_gnn_layers):
-            x =  (x + F.relu(self.bns[i](self.convs[i](x, edge_index, edge_type)))) / 2
+            x = average_residual_update(x, F.relu(self.bns[i](self.convs[i](x, edge_index, edge_type))))
             if self.edge_update:
-                edge_attr = (edge_attr + F.relu(self.emlps[i](torch.cat([x[src], x[dst], edge_attr], dim=-1)))) / 2
+                edge_attr = average_residual_update(edge_attr, F.relu(self.emlps[i](torch.cat([x[src], x[dst], edge_attr], dim=-1))))
         
         x = x[edge_index.T].reshape(-1, 2 * self.n_hidden).relu()
         x = torch.cat((x, edge_attr.view(-1, edge_attr.shape[1])), 1)

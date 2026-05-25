@@ -2,6 +2,7 @@ import torch
 from torch_geometric.data import Data, HeteroData
 from torch_geometric.typing import OptTensor
 import numpy as np
+from edge_feature_utils import get_port_feature_indices
 
 def to_adj_nodes_with_times(data):
     num_nodes = data.num_nodes
@@ -133,11 +134,6 @@ class HeteroGraphData(HeteroData):
         self['node', 'rev_to', 'node'].edge_attr = torch.cat([self['node', 'rev_to', 'node'].edge_attr, out_tds], dim=1)
         return self
     
-def z_norm(data):
-    std = data.std(0).unsqueeze(0)
-    std = torch.where(std == 0, torch.tensor(1, dtype=torch.float32).cpu(), std)
-    return (data - data.mean(0).unsqueeze(0)) / std
-
 def create_hetero_obj(x,  y,  edge_index,  edge_attr, timestamps, args):
     '''Creates a heterogenous graph object for reverse message passing'''
     data = HeteroGraphData()
@@ -145,11 +141,13 @@ def create_hetero_obj(x,  y,  edge_index,  edge_attr, timestamps, args):
     data['node'].x = x
     data['node', 'to', 'node'].edge_index = edge_index
     data['node', 'rev_to', 'node'].edge_index = edge_index.flipud()
-    data['node', 'to', 'node'].edge_attr = edge_attr
-    data['node', 'rev_to', 'node'].edge_attr = edge_attr
+    data['node', 'to', 'node'].edge_attr = edge_attr.clone()
+    data['node', 'rev_to', 'node'].edge_attr = edge_attr.clone()
     if args.ports:
         #swap the in- and outgoing port numberings for the reverse edges
-        data['node', 'rev_to', 'node'].edge_attr[:, [-1, -2]] = data['node', 'rev_to', 'node'].edge_attr[:, [-2, -1]]
+        port_feature_indices = get_port_feature_indices(args.ports)
+        left_idx, right_idx = port_feature_indices
+        data['node', 'rev_to', 'node'].edge_attr[:, [left_idx, right_idx]] = data['node', 'rev_to', 'node'].edge_attr[:, [right_idx, left_idx]]
     data['node', 'to', 'node'].y = y
     data['node', 'to', 'node'].timestamps = timestamps
     
